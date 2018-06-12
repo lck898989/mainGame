@@ -18,6 +18,10 @@ cc.Class({
         next2 : {
             default : null,
             type    : cc.Node,
+        },
+        downButton : {
+            default : null,
+            type    : cc.Node,
         }
     },
 
@@ -32,11 +36,24 @@ cc.Class({
          this.createNext();
          //从游戏屏幕上下落的次数
          this.times = 0;
-         //开始下落
-         this.downFunction(this.nodeArr,1);
+        //  //开始下落
+        //  this.downFunction(this.nodeArr,1);
          this.iState = 0;
          this.totalTime = 0;
          this.registerKeyBoard();
+         this.quick = false;
+         this.time = 0;
+         this.xltime = 0.5;
+         this.cishu = 0;
+
+         //监听下落按钮按下的时候
+         this.downButton.on("touchstart",function(){
+            this.xltime = 0.05;
+         }.bind(this));
+         //下落按钮离开时候
+         this.downButton.on("touchend",function(){
+            this.xltime = 0.5;
+         }.bind(this));
     },
     registerKeyBoard : function(){
         //注册键盘监听
@@ -46,7 +63,7 @@ cc.Class({
     onKeyDown : function(event){
         switch(event.keyCode){
             case cc.KEY.down:
-                 this.quickDown();
+                this.xltime = 0.05;
                  break;
             case cc.KEY.left:
                  this.moveLeft();
@@ -65,10 +82,7 @@ cc.Class({
     onKeyUp   : function(event){
         switch(event.keyCode){
             case cc.KEY.down:
-                 //关闭快速下落计时器
-                 this.unscheduleAllCallbacks();
-                 //开始正常下落代码
-                 this.downFunction(this.nodeArr,1);
+                this.xltime = 0.5;
                  break;
             case cc.KEY.left:
                  break;
@@ -139,13 +153,14 @@ cc.Class({
         //定义从哪一列开始下落
         var randomCol = game3.prototype.createRandom(0,6);
         var prefabArrTemp = [];
+        this.cishu  = 0;
         //从上往下生成
-        var y = this.nodeHeight/2 + this.girdSize/2+1*this.girdSize;
+        // var y = this.nodeHeight/2 + this.girdSize/2+1*this.girdSize;
         for(var i = 0;i < 2;i++){
             // var offSet = i * this.prefabHeight;
             // cc.log("offSet is " + offSet);
             // //产生0-3的随机数
-            var index = Math.floor(Math.random()*200000) % 8;
+            var index = this.controlRandom();
             // //将对应的颜色索引存放到该数组中
             // // this.boxColorArr.push(this.prefabArr[index].color);
             // cc.log("index is " + index);
@@ -153,9 +168,12 @@ cc.Class({
             var prefabNode = game3.prototype.createPrefab(this.imagePrefabArr[index]);
             // cc.log("x is " + x + " and y is "+ y - offSet);
             //设置预制节点的位置
-            prefabNode.setPosition(this.backGroundArr[i][randomCol].x,y-i*this.girdSize);
+            this.nodeArr1=prefabNode;
+            prefabNode.setPosition(this.backGroundArr[0][randomCol].x,this.backGroundArr[0][randomCol].y);
             
             prefabNode.getComponent("Image").type = index;
+            prefabNode.getComponent("Image").col = randomCol;
+            prefabNode.getComponent("Image").row = 0;
             prefabNode.active = false;
             this.backGroundArr[i][randomCol].node = prefabNode;
             cc.log("------type is " + prefabNode.getComponent("Image").type);
@@ -168,6 +186,29 @@ cc.Class({
         console.log(prefabArrTemp);
         //生成父节点
         return prefabArrTemp;
+    },
+    //改变随机数出现的概率
+    controlRandom : function(){
+        var id;
+        var rnd = Math.random();
+        if(rnd < 0.2){
+            id = 0;
+        }else if(rnd < 0.4){
+            id = 1;
+        }else if(rnd < 0.6){
+            id = 2;
+        }else if(rnd < 0.8){
+            id = 3;
+        }else if(rnd < 0.85){
+            id = 4;
+        }else if(rnd < 0.9){
+            id = 5;
+        }else if(rnd < 0.95){
+            id = 6;
+        }else if(rnd < 1){
+            id = 7;
+        }
+        return id;
     },
     //生成下一个形状
     createNext : function(){
@@ -291,100 +332,53 @@ cc.Class({
         //     //执行下落动作
         //     this.moveDown(this.nodeArr);
         // }
+        this.time += dt;
+        if(this.time > this.xltime){
+            if(this.cishu < 2){
+                if(this.cishu === 0){
+                    this.nodeArr[1].active = true;
+                }else if(this.cishu === 1){
+                    this.nodeArr[1].y = this.backGroundArr[1][this.nodeArr[1].getComponent("Image").col].y;
+                    this.nodeArr[0].active = true;
+                    this.nodeArr[0].y = this.backGroundArr[0][this.nodeArr[0].getComponent("Image").col].y;
+                }
+                this.cishu++;
+            }else{
+                this.updatePrefatY(this.nodeArr);
+            }
+            this.time = 0;
+        }
+       
 
     },
     //定时器控制下落
-    downFunction : function(nodeArr,time){
-        var self = this;
-        self.schedule(function(dt){
-            cc.log("dt is " + dt);
-            self.updatePrefatY(nodeArr);
-        }.bind(self),time);
-    },
-    //计时器回调函数
-    // callBack     : function(){
-    //     this.updatePrefatY();
+    // downFunction : function(nodeArr,time){
+    //     var self = this;
+    //     self.updatePrefatY(nodeArr);
     // },
     //更新预制体节点的y坐标
     updatePrefatY : function(nodeArr){
-        cc.log("nodeArr is " + nodeArr);
-        if(nodeArr.length != 0){
-            if(nodeArr[0].y > this.nodeHeight/2){
-                this.times++;
-                // for(let m = 2;m >=0;m--){
-                //     nodeArr[m].y -= (this.nodeWidth/6);
-                // }
-                // for(let colN = 0;colN < 6;colN++){
-                //     //如果有一列的背景状态为1就停止游戏
-                //     if(this.backGroundArr[0][colN].isFilled === 1){
-                //         //取消所有计时器
-                //         this.unscheduleAllCallbacks();
-                //         this.gameOver = true;
-                //         //使界面变为不可操作状态
-                //         // alert("游戏结束");
-                //     }
-                // }
-                for(let m = 0;m<1;m++){
-                    nodeArr[m].active = false;
-                }
-                if(this.times === 1){
-                    nodeArr[1].active = true;
-                    nodeArr[1].y = this.backGroundArr[0][0].y;
-                    // if(this.backGroundArr[0][this.getColumn(nodeArr[2].x)].isFilled != 1){
-                    // }else{
-                    //     nodeArr[2].active = false;
-                    //     //游戏结束
-                    //     alert("游戏结束");
-                    //     //停止所有计时器
-                    //     this.unscheduleAllCallbacks();
-                    // }
-                    
-                }else if(this.times === 2){
-                    nodeArr[1].active = true;
-                    nodeArr[0].active = true;
-                    nodeArr[1].y = this.backGroundArr[1][0].y;
-                    nodeArr[0].y = this.backGroundArr[0][0].y;
-                    // if(this.backGroundArr[0][this.getColumn(nodeArr[1].x)].isFilled != 1){
-                    // }else{
-                    //     nodeArr[2].active = false;
-                    //     nodeArr[1].active = false;
-                    //     this.unscheduleAllCallbacks();
-                    // }
-                    
-                }
-            }else{
                 //如果允许下落的话条的y坐标向下移动
                 if(this.CheckIsDown(nodeArr)){
-                        //下落节点数组,
+                        //下落节点数组,如果是横向的话分开这连个节点
+                        // var row =(nodeArr.getComponent("Image").row;
+                        // var col =(nodeArr.getComponent("Image").col;
                         this.down(nodeArr);
+                        //对该节点执行下落代码
+                    // nodeArr.getComponent("Image").down(this.backGroundArr[row+1][col].y);
                     //判断方格是否可以消除
                     //位移3个方格
-                    
                 }else{
                     // //如果不能下落的话改变背景方格状态(背景方格更新完成之后进行再次生成节点数组)
                     // this.changeBackBlockStatus(nodeArr);
                     // //生成下一个形状
                     // this.createNext();
-                    this.changeMap(nodeArr);
                     this.unscheduleAllCallbacks();
-                    //固定完之后重新生成随机预制体节点
+                    this.changeMap(this.nodeArr);
                     this.nodeArr = this.nextBlock;
-                    //开启计时器
-                    this.downFunction(this.nodeArr,1);
                     //生成下一个形状
                     this.createNext();
-                    // //显示下一个形状
-                    // this.showNextShape(this.nextBlock);
-                    //如果是不能下落的话就是前一个条形已经固定下来了，固定下来之前已经生成了下一个的形状
-                    // for(var j = 0;j<3;j++){
-                    //     nodeArr[j].prefabNode.y -= this.speed;
-                    // }
-                    
                 }
-            }
-            // cc.log("-------->>>>>>>" + nodeArr[0].prefabNode.y);
-            
-        }
     },
     changeMap : function(nodeArr){
         if(nodeArr.length > 0){
@@ -397,10 +391,17 @@ cc.Class({
                 //当前停止的节点对应的地图位置
                 var row = this.getRow(nodeArr[i]);
                 var col = this.getColumn(nodeArr[i]);
-                this.map[row][col] = 1;
+                if(!nodeArr[i].getComponent("Image").hasDown){
+                    this.map[row][col] = 1;
+                    //将背景方格的属性状态改为该节点数组对应的类型
+                    this.backGroundArr[row][col].getComponent("Back").type = nodeArr[i].getComponent("Image").type;
+                }else{
+                    //将该节点的移动状态改为初始值
+                    nodeArr[i].getComponent("Image").hasDown = false;
+                }
             }
+                
         }
-
     },
    //方块下落方法
    down : function(nodeArr){
@@ -450,20 +451,58 @@ cc.Class({
             var nodeAngle = this.nodeArr[0].getComponent("Image").angle;
             var canAction = false;
             if(nodeAngle === 0){
-                if(this.checkIsRotate(x0Row,x0Col,nodeAngle)){
-                    //旋转90度对应的坐标位置
-                    var rotate90X = this.backGroundArr[x0Row][x0Col+1].x;
-                    var rotate90Y = this.backGroundArr[x0Row][x0Col+1].y;               
-                    var bezier = [cc.p(x,y),cc.p(rotate45X,rotate45Y),cc.p(rotate90X,rotate90Y)];
-                    // //初始向量
-                    // var startV = cc.v2(x,y).sub(cc.v2(x0,y0));
-                    // var result = startV.rotate(Math.PI/2);
-                    this.nodeArr[0].x = rotate90X;
-                    this.nodeArr[0].y = rotate90Y;
+                //边界旋转
+                if(x0Col === 5){
+                    //变换旋转中心
+                    var x00 = this.nodeArr[0].x;
+                    var y00 = this.nodeArr[0].y;
+                    var x00Row = this.getRow(this.nodeArr[0]);
+                    var x00Col = this.getColumn(this.nodeArr[0]);
+
+                    var xx = this.nodeArr[1].x;
+                    var yy = this.nodeArr[1].y;
+
+                    //旋转45度方向
+                    var rotate45Xc = (xx-x00)*Math.cos(-Math.PI/4)-(yy-y00)*Math.sin(-Math.PI/4) + x00;
+                    var rotate45Yc = (xx-x00)*Math.sin(-Math.PI/4)+(yy-y00)*Math.cos(-Math.PI/4) + y00;
+
+                    var rotate90X = this.backGroundArr[x00Row][x00Col-1].x;
+                    var rotate90Y = this.backGroundArr[x00Row][x00Col-1].y;   
+                    //创建贝塞尔曲线所对应的最少坐标
+                    var bezier = [cc.p(xx,yy),cc.p(rotate45Xc,rotate45Yc),cc.p(rotate90X,rotate90Y)];
+                    //初始向量
+                    this.nodeArr[1].x = rotate90X;
+                    this.nodeArr[1].y = rotate90Y;
+                    //旋转之后变成270度
                     this.nodeArr[0].getComponent("Image").angle = 1;
-                    //能够旋转
-                    canAction = true;
+                    //执行贝塞尔曲线动作
+                    (function test(cb){
+                        var bezierAction = cc.bezierTo(0.008,bezier);
+                        self.nodeArr[1].runAction(bezierAction);
+                        cb()
+                    })(pro);
+                    function pro() {
+                        cc.log("承诺正常执行########");
+                        cc.log("@@@@@@@@@@" + self.nodeArr[0].x);
+                        cc.log("@@@@@@@@@@" + self.nodeArr[0].y);
+                    }
+                }else{
+                    if(this.checkIsRotate(x0Row,x0Col,nodeAngle)){
+                        //旋转90度对应的坐标位置
+                        var rotate90X = this.backGroundArr[x0Row][x0Col+1].x;
+                        var rotate90Y = this.backGroundArr[x0Row][x0Col+1].y;               
+                        var bezier = [cc.p(x,y),cc.p(rotate45X,rotate45Y),cc.p(rotate90X,rotate90Y)];
+                        // //初始向量
+                        // var startV = cc.v2(x,y).sub(cc.v2(x0,y0));
+                        // var result = startV.rotate(Math.PI/2);
+                        this.nodeArr[0].x = rotate90X;
+                        this.nodeArr[0].y = rotate90Y;
+                        this.nodeArr[0].getComponent("Image").angle = 1;
+                        //能够旋转
+                        canAction = true;
+                    }
                 }
+                
             }else if(nodeAngle === 1){
                 if(this.checkIsRotate(x0Row,x0Col,nodeAngle)){
                     var rotate90X = this.backGroundArr[x0Row+1][x0Col].x;
@@ -480,21 +519,60 @@ cc.Class({
                     canAction = true;
                 }
             }else if(nodeAngle === 2){
-                if(this.checkIsRotate(x0Row,x0Col,nodeAngle)){
-                    var rotate90X = this.backGroundArr[x0Row][x0Col-1].x;
-                    var rotate90Y = this.backGroundArr[x0Row][x0Col-1].y;   
+                //边界旋转判断改为顺时针旋转（以#0块为旋转中心）
+                if(x0Col === 0){
+                    //检查是否可以消除
+                    //改变旋转中心
+                    var x00 = this.nodeArr[0].x;
+                    var y00 = this.nodeArr[0].y;
+                    var x00Row = this.getRow(this.nodeArr[0]);
+                    var x00Col = this.getColumn(this.nodeArr[0]);
+
+                    var xx = this.nodeArr[1].x;
+                    var yy = this.nodeArr[1].y;
+
+                    //旋转45度方向
+                    var rotate45Xc = (xx-x00)*Math.cos(-Math.PI/4)-(yy-y00)*Math.sin(-Math.PI/4) + x00;
+                    var rotate45Yc = (xx-x00)*Math.sin(-Math.PI/4)+(yy-y00)*Math.cos(-Math.PI/4) + y00;
+
+                    var rotate90X = this.backGroundArr[x00Row][x00Col+1].x;
+                    var rotate90Y = this.backGroundArr[x00Row][x00Col+1].y;   
                     //创建贝塞尔曲线所对应的最少坐标
-                    var bezier = [cc.p(x,y),cc.p(rotate45X,rotate45Y),cc.p(rotate90X,rotate90Y)];
+                    var bezier = [cc.p(xx,yy),cc.p(rotate45Xc,rotate45Yc),cc.p(rotate90X,rotate90Y)];
                     // //初始向量
                     // var startV = cc.v2(x,y).sub(cc.v2(x0,y0));
                     // var result = startV.rotate(Math.PI/2);
-                    this.nodeArr[0].x = rotate90X;
-                    this.nodeArr[0].y = rotate90Y;
+                    this.nodeArr[1].x = rotate90X;
+                    this.nodeArr[1].y = rotate90Y;
                     //旋转之后变成270度
                     this.nodeArr[0].getComponent("Image").angle = 3;
-                    canAction = true;
+                    //执行贝塞尔曲线动作
+                    (function test(cb){
+                        var bezierAction = cc.bezierTo(0.008,bezier);
+                        self.nodeArr[1].runAction(bezierAction);
+                        cb()
+                    })(pro);
+                    function pro() {
+                        cc.log("承诺正常执行########");
+                        cc.log("@@@@@@@@@@" + self.nodeArr[0].x);
+                        cc.log("@@@@@@@@@@" + self.nodeArr[0].y);
+                    }
+                }else{
+                    if(this.checkIsRotate(x0Row,x0Col,nodeAngle)){
+                        var rotate90X = this.backGroundArr[x0Row][x0Col-1].x;
+                        var rotate90Y = this.backGroundArr[x0Row][x0Col-1].y;   
+                        //创建贝塞尔曲线所对应的最少坐标
+                        var bezier = [cc.p(x,y),cc.p(rotate45X,rotate45Y),cc.p(rotate90X,rotate90Y)];
+                        // //初始向量
+                        // var startV = cc.v2(x,y).sub(cc.v2(x0,y0));
+                        // var result = startV.rotate(Math.PI/2);
+                        this.nodeArr[0].x = rotate90X;
+                        this.nodeArr[0].y = rotate90Y;
+                        //旋转之后变成270度
+                        this.nodeArr[0].getComponent("Image").angle = 3;
+                        canAction = true;
+                    }
                 }
-                
             }else if(nodeAngle === 3){
                 if(this.checkIsRotate(x0Row,x0Col,nodeAngle)){
                     var rotate90X = this.backGroundArr[x0Row-1][x0Col].x;
@@ -543,29 +621,29 @@ cc.Class({
             //四个方向
             //如果当前方向是0的话就看看一方向对应的背景方格的状态是什么
             if(angle === 0){
-                //检查旋转中心节点的右边背景方格的状态是否为1
-                if(this.map[centerRow][centerCol+1] === 1){
-                    return false;
-                }else{
+                //检查旋转中心节点的右边背景方格的状态是否为1和检查#0块右边对应的背景方格是否为1
+                if(this.map[centerRow-1][centerCol+1] != 1 && this.map[centerRow][centerCol+1] != 1){
                     return true;
+                }else{
+                    return false;
                 }
             }else if(angle === 1){
-                if(this.map[centerRow + 1][centerCol] === 1){
-                    return false;
-                }else{
+                if(this.map[centerRow+1][centerCol+1] != 1 && this.map[centerRow+1][centerCol] != 1){
                     return true;
+                }else{
+                    return false;
                 }
             }else if(angle === 2){
-                if(this.map[centerRow][centerCol-1] === 1){
-                    return false;
-                }else{
+                if(this.map[centerRow+1][centerCol-1] != 1 && this.map[centerRow][centerCol-1] != 1){
                     return true;
+                }else{
+                    return false;
                 }
             }else if(angle === 3){
-                if(this.map[centerRow-1][centerCol] === 1){
-                    return false;
-                }else{
+                if(this.map[centerRow-1][centerCol-1] != 1 && this.map[centerRow-1][centerCol] != 1){
                     return true;
+                }else{
+                    return false;
                 }
             }
     },
@@ -610,19 +688,118 @@ cc.Class({
         @return true  : 可以下落
         @return false : 不可以下落
     **/
+    /**
+     * @param  {待检测的节点数组} nodeArr
+     */
     CheckIsDown : function(nodeArr){
         if(nodeArr.length != 0){
-            //如果是整个方块下落的时候的方法
-            // var row = [];
-            // for(var i = 0;i<nodeArr.length;i++){
-            //     row[i] = this.getRow(nodeArr[i].prefabNode);
-            // }
-            // var col = this.getColumn(nodeArr[nodeArr.length - 1].prefabNode);
+            //将坐标值转换为小数点两位小数
             this.remainTwoNumber(nodeArr);
-            var row = this.getRow(nodeArr[nodeArr.length-1]);
-            var col = this.getColumn(nodeArr[nodeArr.length-1]);
+            //如果#0块的属性angle为零的时候，只判断#1块下面是否为1，为1不下落，为地面不下落
+            if(nodeArr[0].getComponent("Image").angle === 0){
+                return this.checkIsBottom(nodeArr[1],0);
+            }else if(nodeArr[0].getComponent("Image").angle === 1 || nodeArr[0].getComponent("Image").angle === 3){
+                //横条的形状的时候会出现有一个下落的情况
+                if(this.checkDown(nodeArr) && !(this.checkDown(nodeArr) instanceof cc.Node)){
+                    return true;
+                }else if(!this.checkDown(nodeArr) && !(this.checkDown(nodeArr) instanceof cc.Node)){
+                    return false;
+                }else if(this.checkDown(nodeArr) instanceof cc.Node){
+                    var targetNode = this.checkDown(nodeArr);
+                    //找出这个下面背景方格状态为0的节点
+                    var targetRow = this.findTheNodeDown(targetNode);
+                    var col = this.getColumn(targetNode);
+                    //单独下落这个节点
+                    targetNode.getComponent("Image").quickDown(targetRow,col,this.backGroundArr,this.map);
+                    return false;
+                }
+
+            }else if(nodeArr[0].getComponent("Image").angle === 2){
+                return this.checkIsBottom(nodeArr[0],2);
+            }
+            
+        }
+    },
+    
+    /**
+     * @param  {需要向下搜索背景方格的状态的初始节点} node
+     */
+    findTheNodeDown : function(node){
+         //获得当前节点的行和列
+         var row = this.getRow(node);
+         var col = this.getColumn(node);
+         //向下寻找
+         while(row < 11){
+            row++;
+            if(this.map[row][col] === 1){
+                break;
+            }
+            if(row === 11){
+                break;
+            }
+         }
+         //最底下的背景方格的状态不为1
+         if(row === 11 && this.map[row][col] != 1){
+             return 11;
+         }else{
+            return row-1;
+         }
+         
+    },
+    // CheckIsDown : function(node){
+    //     var nodeArr = [];
+    //     nodeArr.push(node);
+    //     this.remainTwoNumber(nodeArr);
+    //     //获取该节点的行和列
+    //     var row = node.getComponent("Image").row;
+    //     var col = node.getComponent("Image").col;
+    //     return true;
+
+    //判断横条的情况
+    checkDown : function(nodeArr){
+        this.remainTwoNumber(nodeArr);
+        var count1 = 0;
+        var count0 = 0;
+        var nodeDownIsZero = [];
+        //如果是第11行就放回false
+        if(this.getRow(nodeArr[0]) === 11){
+            return false;
+        }
+        for(let m = 0;m < nodeArr.length;m++){
+            var row = this.getRow(nodeArr[m]);
+            var col = this.getColumn(nodeArr[m]);
+            if(this.map[row+1][col] === 1){
+                count1++;
+            }else if(this.map[row+1][col] ===0){
+                count0++;
+                nodeDownIsZero.push(nodeArr[m]);
+            }
+        }
+        if(count1 === 2){
+            //如果两个块的下面都为1的话不可以下落
+            return false;
+        }else if(count0 === 2){
+            //如果两个块的下面都为0的话是可以下落的
+            return true;
+        }else{
+            if(nodeDownIsZero.length > 0 && nodeDownIsZero.length === 1){
+                return nodeDownIsZero[0];
+            }
+        }
+        
+
+    },
+    // },
+    //判断是否触底或者是下面还有方块
+    /**
+     * @param  {待检测的节点} node
+     */
+    checkIsBottom : function(node,angle){
+        // if(angle === 0 || angle === 2){
+            var row = this.getRow(node);
+            var col = this.getColumn(node);
             if(row != 11){
-                cc.log(this.map[row+1][col]);
+                //下一行背景方格的状态是否为1
                 if(this.map[row + 1][col] === 1){
                     //将对应的背景方格的状态改为1
                     return false;
@@ -632,7 +809,6 @@ cc.Class({
             }else{
                 return false;
             }
-        }
     },
     /**
        检测是否可以向左移动
